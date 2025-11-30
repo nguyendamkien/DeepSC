@@ -26,7 +26,7 @@ plt.ion()  # Turn on interactive mode
 parser = argparse.ArgumentParser()
 parser.add_argument('--vocab-file', default='vocab.json', type=str)
 parser.add_argument('--checkpoint-path',
-                    default='checkpoints/deepsc-AWGN',
+                    default='/kaggle/working/checkpoints/deepsc-AWGN',
                     type=str)
 parser.add_argument('--channel', default='AWGN', type=str,
                     help='Please choose AWGN, Rayleigh, and Rician')
@@ -38,6 +38,14 @@ parser.add_argument('--num-layers', default=4, type=int)
 parser.add_argument('--num-heads', default=8, type=int)
 parser.add_argument('--batch-size', default=128, type=int)
 parser.add_argument('--epochs', default=80, type=int)
+
+# thêm argument action
+parser.add_argument(
+    "--action",
+    choices=["start", "resume"],
+    default="start",
+    help="Choose 'start' to train from scratch or 'resume' to continue from checkpoint"
+)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 stop_training = False  # Global variable to control training interruption
@@ -205,11 +213,13 @@ if __name__ == '__main__':
     list_checkpoints(args.checkpoint_path)
 
     # Prompt user for action with input validation
-    while True:
-        action = input("Choose action: resume or start? ").strip().lower()
-        if action in ['resume', 'start']:
-            break
-        print("Invalid input. Please enter 'resume' or 'start'.")
+    # while True:
+    #     action = input("Choose action: resume or start? ").strip().lower()
+    #     if action in ['resume', 'start']:
+    #         break
+    #     print("Invalid input. Please enter 'resume' or 'start'.")
+
+    action = args.action  # 'resume' hoặc 'start'
 
     start_epoch = 0
     if action == 'resume':
@@ -240,7 +250,7 @@ if __name__ == '__main__':
         start = time.time()
         # Training
         interrupted, epoch_train_loss, avg_mi_bits, snr_min, snr_max, snr_avg = train(
-            epoch, args, deepsc)
+            epoch, args, deepsc, mi_net)
         if interrupted:
             print(
                 f"Training stopped at epoch {epoch + 1}. Saving checkpoint...")

@@ -30,6 +30,7 @@ from w3lib.html import remove_tags
 
 # Download NLTK data (run once if not already installed)
 nltk.download('punkt', quiet=True)
+nltk.download('punkt_tab')
 # Argument parser for handling input and output directories for text data processing
 parser = argparse.ArgumentParser()
 # parser.add_argument('--input-data-dir', default='europarl/txt/en', type=str)
@@ -48,7 +49,7 @@ SPECIAL_TOKENS = {
 }
 
 
-# Function to normalize unicode characters into ASCII
+# Function to normalize unicode characters into ASCII - chuyển unicode sang ASCII , bỏ các dấu 
 def unicode_to_ascii(s):
     return ''.join(c for c in unicodedata.normalize('NFD', s)
                    if unicodedata.category(c) != 'Mn')
@@ -59,7 +60,7 @@ def remove_tags(s):
     return re.sub(r'<[^>]+>', '', s)
 
 
-# Function to remove annotations like (Protests), (FR), etc.
+# Function to remove annotations like (Protests), (FR), etc. - xóa các chú thích trong ngoặc đơn
 def remove_annotations(s):
     return re.sub(r'\s*\([^)]*\)', '', s)
 
@@ -67,26 +68,26 @@ def remove_annotations(s):
 # Function to extract spoken content, remove tags and metadata
 def parse_and_extract_text(raw_text):
     text = remove_tags(raw_text)
-    lines = [line.strip() for line in text.split('\n') if line.strip()]
+    lines = [line.strip() for line in text.split('\n') if line.strip()] #lọc theo dòng và loại bỏ khoảng trắng đầu và cuối
     spoken_lines = []
     for line in lines:
-        if not re.match(r'^\d+\.\s|^-\s|^rapporteur\.', line):
+        if not re.match(r'^\d+\.\s|^-\s|^rapporteur\.', line): # không lấy các dòng bắt đầu (match) có số thứ tự 1., -, và rapporteur
             spoken_lines.append(line)
-    return '\n'.join(spoken_lines)
+    return '\n'.join(spoken_lines) # nối các dòng lại 
 
 
 # Function to clean and preprocess text, matching DeepSC's punctuation behavior
 def normalize_string(s):
     s = unicode_to_ascii(s)
     s = remove_annotations(s)
-    s = re.sub(r'[^a-zA-Z.!?]+', r' ', s)
-    s = re.sub(r'([!.?])', r' \1', s)  # DeepSC behavior
-    s = re.sub(r'\s+', r' ', s)
-    s = s.lower().strip()
+    s = re.sub(r'[^a-zA-Z.!?]+', r' ', s) # giữ lại các chữ và dấu câu
+    s = re.sub(r'([!.?])', r' \1', s)  # DeepSC behavior - thêm khoảng trắng trước các dấu câu
+    s = re.sub(r'\s+', r' ', s) #gộp nhiều khoảng trắng thành 1
+    s = s.lower().strip() # chuyển về chữ thường và loại bỏ khoảng trắng đầu đuôi
     return s
 
 
-# Function to filter sentences by length, matching DeepSC's exact logic
+# Function to filter sentences by length, matching DeepSC's exact logic - lọc để giữ lại những câu có độ dài (số từ) vừa phải
 def cutted_data(sentences, MIN_LENGTH=4, MAX_LENGTH=29):
     cutted_lines = []
     for line in sentences:
@@ -112,7 +113,7 @@ def process(text_path):
     cleaned_text = normalize_string(spoken_text)
 
     # Tokenize into sentences using NLTK
-    sentences = nltk.sent_tokenize(cleaned_text)
+    sentences = nltk.sent_tokenize(cleaned_text) #tách văn bản thành các câu
 
     # Filter by length
     raw_data_input = cutted_data(sentences)
@@ -164,6 +165,7 @@ def save_clean_sentences(sentence, save_path):
 
 
 # Tokenizer that splits text into individual tokens (words) with special tokens for start and end
+# tách câu thành các token và thêm token start và end
 def tokenize(s, delim=' ', add_start_token=True, add_end_token=True,
              punct_to_keep=None, punct_to_remove=None):
     """
@@ -351,4 +353,6 @@ def main(args):
 if __name__ == '__main__':
     args = parser.parse_args()
     main(args)
-    # debug_process('data/europarl/txt/en/ep-07-05-23-005-04.txt')
+    #debug_process('data/europarl/txt/en/ep-07-05-23-005-04.txt')
+
+#train và test là một list các list danh sách token

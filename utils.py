@@ -1200,7 +1200,10 @@ def save_evaluation_scores(args, SNR, bleu_score, similarity_score, method,
         str: Path to the results directory
     """
     # Create base results directory with method included
-    results_dir = f"evaluation_result/{method}-{args.channel}"
+    # results_dir = f"evaluation_result/{method}-{args.channel}"
+    # os.makedirs(results_dir, exist_ok=True)
+
+    results_dir = f"/kaggle/working/{method}-{args.channel}"
     os.makedirs(results_dir, exist_ok=True)
 
     # Generate timestamp for files
@@ -1631,6 +1634,15 @@ def list_checkpoints(checkpoint_dir, device=torch.device(
         tuple: (epochs, train_losses, val_losses, paths, timestamps, fields) - Lists of epochs,
                training losses, validation losses, file paths, timestamps, and checkpoint fields.
     """
+    # If checkpoint directory doesn't exist, create it so callers won't fail
+    if not os.path.exists(checkpoint_dir):
+        try:
+            os.makedirs(checkpoint_dir, exist_ok=True)
+            print(f"Checkpoint directory '{checkpoint_dir}' did not exist; created it.")
+        except Exception as e:
+            print(f"Unable to create checkpoint directory '{checkpoint_dir}': {e}")
+            return [], [], [], [], [], []
+
     checkpoints = [f for f in os.listdir(checkpoint_dir) if f.endswith('.pth')]
     if not checkpoints:
         print("No checkpoints found.")
@@ -1700,6 +1712,15 @@ def load_checkpoint(checkpoint_dir, mode='latest'):
     - 'latest': Loads the most recent checkpoint based on timestamp.
     - 'best': Loads the checkpoint with the lowest validation loss.
     """
+    # If checkpoint directory doesn't exist, create it so callers won't fail
+    if not os.path.exists(checkpoint_dir):
+        try:
+            os.makedirs(checkpoint_dir, exist_ok=True)
+            print(f"Checkpoint directory '{checkpoint_dir}' did not exist; created it.")
+        except Exception as e:
+            print(f"Unable to create checkpoint directory '{checkpoint_dir}': {e}")
+            return None
+
     # List all .pth files in the checkpoint directory
     checkpoints = [f for f in os.listdir(checkpoint_dir) if f.endswith('.pth')]
     if not checkpoints:

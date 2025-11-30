@@ -25,10 +25,14 @@ from utils import SNR_to_noise, greedy_decode, SeqtoText, BleuScore, \
 parser = argparse.ArgumentParser()
 parser.add_argument('--data-dir', default='train_data.pkl', type=str)
 parser.add_argument('--vocab-file', default='vocab.json', type=str)
+# parser.add_argument('--checkpoint-path',
+#                     default='/kaggle/working/checkpoints/deepsc-Rayleigh',
+#                     type=str)
+# parser.add_argument('--channel', default='Rayleigh', type=str)
 parser.add_argument('--checkpoint-path',
-                    default='checkpoints/deepsc-Rayleigh',
+                    default='./kaggle/working/checkpoints/deepsc-AWGN',
                     type=str)
-parser.add_argument('--channel', default='Rayleigh', type=str)
+parser.add_argument('--channel', default='AWGN', type=str)
 parser.add_argument('--MAX-LENGTH', default=30, type=int)
 parser.add_argument('--batch-size', default=1,
                     type=int)  # Set batch size to 1 for detailed observation
@@ -248,10 +252,20 @@ def interactive_test(args, snr, net):
             # Perform inference
             with torch.no_grad():
                 noise_std = SNR_to_noise(args.SNR)
-                output_tokens = greedy_decode(net, input_tensor, noise_std,
-                                              args.MAX_LENGTH, pad_idx,
-                                              start_idx,
-                                              args.channel)
+                # output_tokens = greedy_decode(net, input_tensor, noise_std,
+                #                               args.MAX_LENGTH, pad_idx,
+                #                               start_idx,
+                #                               args.channel,
+                #                               device)
+                output_tokens, _ = greedy_decode(
+                    net, input_tensor, noise_std,
+                    args.MAX_LENGTH, pad_idx, start_idx,
+                    args.channel, 
+                    device
+                )
+
+                print(output_tokens)
+
 
             # Process output tokens
             if isinstance(output_tokens, torch.Tensor):
@@ -303,6 +317,7 @@ if __name__ == '__main__':
     SNR = args.SNR
 
     # Load vocabulary
+    # args.vocab_file = '/kaggle/input/deepsc/data/' + args.vocab_file
     args.vocab_file = './data/' + args.vocab_file
     vocab = json.load(open(args.vocab_file, 'rb'))
     token_to_idx = vocab['token_to_idx']
@@ -329,5 +344,7 @@ if __name__ == '__main__':
                                num_workers=0, pin_memory=True,
                                collate_fn=collate_data)
     seq_to_text = SeqtoText(token_to_idx, end_idx)
-    # interactive_test(args, SNR, deepsc)
-    list_checkpoints("D:/timevaryingrician_checkpoints")
+    interactive_test(args, SNR, deepsc)
+    #list_checkpoints("D:/timevaryingrician_checkpoints")
+    #list_checkpoints("./kaggle/working/checkpoints/deepsc-AWGN")
+
