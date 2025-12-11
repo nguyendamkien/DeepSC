@@ -9,6 +9,7 @@ import argparse
 import json
 import os
 import random
+import numpy as np
 
 import torch
 from torch.utils.data import DataLoader
@@ -238,7 +239,7 @@ def interactive_test(args, snr, net):
             input_tokens = [start_idx] + [
                 token_to_idx.get(word, token_to_idx["<UNK>"])
                 for word in user_input.split()
-            ] + [end_idx]
+            ] + [4] + [end_idx]
 
             if len(input_tokens) > args.MAX_LENGTH + 2:  # +2 for start/end tokens
                 print(
@@ -248,7 +249,7 @@ def interactive_test(args, snr, net):
             input_tensor = torch.tensor(input_tokens,
                                         dtype=torch.long).unsqueeze(0).to(
                 device)
-
+            
             # Perform inference
             with torch.no_grad():
                 noise_std = SNR_to_noise(args.SNR)
@@ -257,15 +258,14 @@ def interactive_test(args, snr, net):
                 #                               start_idx,
                 #                               args.channel,
                 #                               device)
-                output_tokens, _ = greedy_decode(
+                decoded, _ = greedy_decode(
                     net, input_tensor, noise_std,
                     args.MAX_LENGTH, pad_idx, start_idx,
-                    args.channel, 
-                    device
+                    args.channel, device
                 )
-
+                output_tokens = decoded
+                print(input_tensor)
                 print(output_tokens)
-
 
             # Process output tokens
             if isinstance(output_tokens, torch.Tensor):
@@ -274,8 +274,23 @@ def interactive_test(args, snr, net):
                     output_tokens[0], list):
                 output_tokens = output_tokens[0]
 
+            # Loại bỏ token đặc biệt và cắt sau <END>
+            clean_tokens = []
+            for t in output_tokens:
+                if t == end_idx:  # token <END>
+                    break          # dừng lấy token sau <END>
+                if t in (start_idx, 4):  # bỏ <START> và token 4
+                    continue
+                clean_tokens.append(t)
+
+            # Chuyển sang text
+            output_sentence = StoT.sequence_to_text(clean_tokens)
+
             # Convert output tokens back to text
-            output_sentence = StoT.sequence_to_text(output_tokens)
+            # output_sentence = StoT.sequence_to_text(output_tokens)
+
+            print(user_input)
+            print(output_sentence)
 
             # Calculate metrics
             bleu = \
@@ -291,8 +306,28 @@ def interactive_test(args, snr, net):
             print(f"BLEU Score: {bleu:.4f}")
             print(f"Similarity Score: {sim:.4f}")
 
-            # Debug similarity if score seems unexpected
-            if sim > 0.8 and bleu < 0.2:
+            # Helper to convert tensors/arrays/lists to scalars safely
+            def to_scalar(x):
+                # Torch tensors
+                import torch
+                if isinstance(x, torch.Tensor):
+                    if x.numel() == 1:
+                        return x.item()
+                    return float(x.mean().item())
+                # NumPy arrays / lists / tuples
+                if isinstance(x, (list, tuple, np.ndarray)):
+                    arr = np.array(x)
+                    if arr.size == 1:
+                        return float(arr.item())
+                    return float(arr.mean())
+                # Floats/ints
+                try:
+                    return float(x)
+                except Exception:
+                    return 0.0
+
+            # Debug similarity if score seems unexpected (use scalars to avoid ambiguous tensor comparison)
+            if to_scalar(sim) > 0.8 and to_scalar(bleu) < 0.2:
                 debug_similarity(similarity, user_input, output_sentence)
 
         except KeyboardInterrupt:
@@ -344,6 +379,38 @@ if __name__ == '__main__':
                                num_workers=0, pin_memory=True,
                                collate_fn=collate_data)
     seq_to_text = SeqtoText(token_to_idx, end_idx)
+    # --- Test một câu từ test set để BLEU cao ---
+    test_dataset = EurDataset('test')
+    # Chọn câu đầu tiên từ test set, convert sang tensor
+    sample_sentence_1 = torch.tensor(test_dataset[0], dtype=torch.long).unsqueeze(0).to(device)
+
+    StoT = SeqtoText(token_to_idx, end_idx)
+    bleu_score_calc = BleuScore(1, 0, 0, 0)
+    similarity = Similarity(batch_size=1)
+
+    with torch.no_grad():
+        noise_std = SNR_to_noise(SNR)
+        output_tokens, _ = greedy_decode(deepsc, sample_sentence_1, noise_std,
+                                    args.MAX_LENGTH, pad_idx, start_idx, args.channel, device)
+
+    # Convert tokens to text
+    input_text = StoT.sequence_to_text(sample_sentence_1.cpu().numpy().tolist()[0])
+    sentence_1 = output_tokens.cpu().numpy().tolist()[0]
+    output_text = StoT.sequence_to_text(sentence_1)
+    print(sample_sentence_1)
+    print(output_tokens)
+
+    bleu = bleu_score_calc.compute_blue_score([input_text], [output_text])[0]
+    sim = similarity.compute_similarity([input_text], [output_text])[0]
+
+    print("\n--- Test hardcoded sample from test set ---")
+    print(f"Input : {input_text}")
+    print(f"Output: {output_text}")
+    print(f"BLEU  : {bleu:.4f}")
+    print(f"Sim   : {sim:.4f}\n")
+    # ---------------------------------------------
+
+
     interactive_test(args, SNR, deepsc)
     #list_checkpoints("D:/timevaryingrician_checkpoints")
     #list_checkpoints("./kaggle/working/checkpoints/deepsc-AWGN")

@@ -250,7 +250,7 @@ if __name__ == '__main__':
         start = time.time()
         # Training
         interrupted, epoch_train_loss, avg_mi_bits, snr_min, snr_max, snr_avg = train(
-            epoch, args, deepsc, mi_net)
+            epoch, args, deepsc)
         if interrupted:
             print(
                 f"Training stopped at epoch {epoch + 1}. Saving checkpoint...")
